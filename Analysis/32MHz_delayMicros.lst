@@ -1,0 +1,42 @@
+														ATmega	0		low		high	LGT		0		low		high
+
+												Zero requested microsecond, will do 65536 loop cycles
+
+delayMicroseconds(3);       // = 6 cycles
+    2f0c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2f0e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2f10:	0e 94 06 1a 	call	0x340c;<delayMicroseconds>	4		4		4				2		2		2
+
+
+0000340c <delayMicroseconds>:
+#if F_CPU >= 32000000L
+  // the following loop takes a 1/4 of a microsecond (8 cycles with nops)
+  // per iteration, so execute it four times for each microsecond of
+  // delay requested.
+  us <<= 2; // x4 us, = 4 cycles
+    340c:	88 0f       	add	r24, r24			 			1		1		1				1		1		1
+    340e:	99 1f       	adc	r25, r25			 			1		1		1				1		1		1
+    3410:	88 0f       	add	r24, r24			 			1		1		1				1		1		1
+    3412:	99 1f       	adc	r25, r25			 			1		1		1				1		1		1
+	
+#define _MORENOP_ " nop \n\t  nop \n\t  nop \n\t  nop \n\t"
+
+  // account for the time taken in the preceeding commands.
+  // we just burned 16 (18) cycles above, remove 3, (2*8=16)
+  // us is at least 4 so we can substract 2
+  us -= 2; // = 2 cycles
+    3414:	02 97       	sbiw	r24, 0x02	; 2				2		2		2				1		1		1
+
+  // busy wait
+  __asm__ __volatile__
+    3416:	01 97       	sbiw	r24, 0x01	; 1
+    3418:	00 00       	nop
+    341a:	00 00       	nop
+    341c:	00 00       	nop
+    341e:	00 00       	nop
+    3420:	f1 f7       	brne	.-4      	; 0x3416		  !!!	8*r24-1					  !!!	8*r24-1 (1 more nop inserted)
+
+  // return = 4 cycles
+    3422:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	16		16		16				11		11		11 (Need 5 more nops)

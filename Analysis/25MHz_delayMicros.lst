@@ -1,0 +1,45 @@
+														ATmega	0		low		high	LGT		0		low		high
+
+												Zero requested microsecond, will do 65536 loop cycles
+
+delayMicroseconds(3);       // = 6 cycles
+    2e8c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2e8e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2e90:	0e 94 a9 19 	call	0x3352;<delayMicroseconds>	4		4		4				2		2		2
+
+
+0000338c <delayMicroseconds>:
+#elif F_CPU >= 25000000L
+  // the following loop takes a 1/5 of a microsecond (5 cycles)
+  // per iteration, so execute it six times for each microsecond of
+  // delay requested.
+  us = (us << 2) + us; // x5 us, = 7 cycles
+    338c:	9c 01       	movw	r18, r24					1		1		1				1		1		1
+    338e:	22 0f       	add		r18, r18					1		1		1				1		1		1
+    3390:	33 1f       	adc		r19, r19					1		1		1				1		1		1
+    3392:	22 0f       	add		r18, r18					1		1		1				1		1		1
+    3394:	33 1f       	adc		r19, r19					1		1		1				1		1		1
+
+#define _MORENOP_ " nop \n\t"
+
+  // account for the time taken in the preceeding commands.
+  // we just burned 19 (21) cycles above, remove 4, (4*5=20)
+  // us is at least 5 so we can substract 4
+  us -= 4; // = 2 cycles
+    3396:	04 97       	sbiw	r24, 0x04	; 4				2		2		2				1		1		1
+
+    3398:	82 0f       	add		r24, r18					1		1		1				1		1		1
+    339a:	93 1f       	adc		r25, r19					1		1		1				1		1		1
+
+#endif
+
+  // busy wait
+  __asm__ __volatile__
+    339c:	01 97       	sbiw	r24, 0x01	; 1
+    339e:	00 00       	nop
+    33a0:	f1 f7       	brne	.-4      	; 0x339c		  !!!	5*r24-1					  !!!	5*r24-1 (1 more nop inserted)
+
+  // return = 4 cycles
+    33a2:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	19		19		19				14		14		14	 (Need multiplied us-3)

@@ -1,0 +1,40 @@
+														ATmega	0		low		high	LGT		0		low		high
+delayMicroseconds(3);       // = 6 cycles
+    2e8c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2e8e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2e90:	0e 94 a9 19 	call	0x3352;<delayMicroseconds>	4		4		4				2		2		2
+
+
+00003352 <delayMicroseconds>:
+#elif F_CPU >= 16000000L
+  // for a one-microsecond delay, simply return.  the overhead
+  // of the function call takes 14 (16) cycles, which is 1 us
+  if (us <= 1) return; //  = 3 cycles, (4 when true)
+    3352:	82 30       	cpi		r24, 0x02	; 2				1		1		1				1		1		1
+    3354:	91 05       	cpc		r25, r1						1		1		1				1		1		1
+    3356:	38 f0       	brcs	.+14     	; 0x3366		2		1		1				2		1		1
+
+  // the following loop takes 1/4 of a microsecond (4 cycles)
+  // per iteration, so execute it four times for each microsecond of
+  // delay requested.
+  us <<= 2; // x4 us, = 4 cycles
+    3358:	88 0f       	add		r24, r24							1		1						1		1
+    335a:	99 1f       	adc		r25, r25							1		1						1		1
+    335c:	88 0f       	add		r24, r24							1		1						1		1
+    335e:	99 1f       	adc		r25, r25							1		1						1		1
+
+  // account for the time taken in the preceeding commands.
+  // we just burned 19 (21) cycles above, remove 5, (5*4=20)
+  // to 2nd us is at least 8 so we can substract 5
+  us -= 5; // = 2 cycles,
+    3360:	05 97       	sbiw	r24, 0x05	; 5						2		2						1		1
+
+  // busy wait
+  __asm__ __volatile__
+    3362:	01 97       	sbiw	r24, 0x01	; 1
+    3364:	f1 f7       	brne	.-4      	; 0x3362					4*r24-1							4*r24-1 (nop inserted)
+
+  // return = 4 cycles
+    3366:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	14			19					10			14	 (Need 4 more nops at begin)

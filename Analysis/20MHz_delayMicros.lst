@@ -1,0 +1,54 @@
+														ATmega	0		low		high	LGT		0		low		high
+
+												Zero requested microsecond, will do 65536 loop cycles when compiled to LGT
+														
+delayMicroseconds(3);       // = 6 cycles
+    2f0c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2f0e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2f10:	0e 94 06 1a 	call	0x340c;<delayMicroseconds>	4		4		4				2		2		2
+
+
+0000340c <delayMicroseconds>:
+#elif F_CPU >= 20000000L
+  __asm__ __volatile__  // just waiting 5 cycles
+    340c:	00 00       	nop									1		1		1				1		1		1
+    340e:	00 00       	nop									1		1		1				1		1		1
+    3410:	00 00       	nop									1		1		1				
+    3412:	00 00       	nop									1		1		1				In LGT code, no instrucions here
+    3414:	00 00       	nop									1		1		1								
+
+  // for a one-microsecond delay, simply return.  the overhead
+  // of the function call takes 19 (21) cycles, which is 1us
+  if (us <= 1) return; //  = 3 cycles, (4 when true)
+    3416:	82 30       	cpi		r24, 0x02	; 2 			1		1		1								
+    3418:	91 05       	cpc		r25, r1			 			1		1		1				In LGT code, no instrucions here
+    341a:	50 f0       	brcs	.+20     	; 0x3430		2		1		1								
+
+  // the following loop takes a 1/5 of a microsecond (4 cycles)
+  // per iteration, so execute it five times for each microsecond of
+  // delay requested.
+  us = (us << 2) + us; // x5 us, = 7 cycles
+    341c:	9c 01       	movw	r18, r24		 					1		1				1		1		1
+    341e:	22 0f       	add		r18, r18		 					1		1				1		1		1
+    3420:	33 1f       	adc		r19, r19		 					1		1				1		1		1
+    3422:	22 0f       	add		r18, r18		 					1		1				1		1		1
+    3424:	33 1f       	adc		r19, r19		 					1		1				1		1		1
+
+  // account for the time taken in the preceeding commands.
+  // we just burned 27 (29) cycles above, remove 7, (7*4=28)
+  // to 2nd us is at least 10 so we can substract 7
+  us -= 7; // = 2 cycles
+    3426:	07 97       	sbiw	r24, 0x07	; 7						2		2				1		1		1
+
+    3428:	82 0f       	add		r24, r18		 					1		1				1		1		1
+    342a:	93 1f       	adc		r25, r19		 					1		1				1		1		1
+
+  // busy wait
+  __asm__ __volatile__
+    342c:	01 97       	sbiw	r24, 0x01	; 1
+    342e:	f1 f7       	brne	.-4      	; 0x342c					4*r24-1							4*r24-1 (nop inserted)
+
+  // return = 4 cycles
+    3430:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	19			27					16		16		16	 (Need 3 less nops and multiplied us-4)

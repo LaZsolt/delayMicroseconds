@@ -1,0 +1,37 @@
+														ATmega	0		low		high	LGT		0		low		high
+delayMicroseconds(3);       // = 6 cycles
+    2f0c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2f0e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2f10:	0e 94 e9 19 	call	0x33d2;<delayMicroseconds>	4		4		4				2		2		2
+
+
+000033d2 <delayMicroseconds>:
+#elif F_CPU >= 2000000L
+  // the overhead of the function call is 14 (16) cycles which is ~7 us
+  // if someone request less than 11 us it will delay ~7 microseconds
+  if (us <= 10) return;
+    33d2:	8a 30       	cpi		r24, 0x0B	; 11			1		1		1				1		1		1
+    33d4:	91 05       	cpc		r25, r1						1		1		1				1		1		1
+    33d6:	28 f0       	brcs	.+12     	; 0x33e4		2		1		1				2		1		1
+
+  // Subtract microseconds (9) that were wasted in this function
+  // so we can substract 9 ( every 2nd delay accurate 11 us and above)
+  us -= 9;  // = 2 cycles
+    33d8:	08 97       	sbiw	r24, 0x09	; 9						2		2						1		1
+
+  us >>= 1; // division by 2 = 2 cycles
+    33da:	96 95       	lsr		r25									1		1						1		1
+    33dc:	87 95       	ror		r24									1		1						1		1
+	
+  __asm__ __volatile__ ("nop"); // waiting 1 cycle to adjust time
+    33de:	00 00       	nop											1		1						1		1
+
+  // busy wait
+  __asm__ __volatile__ 
+    33e0:	01 97       	sbiw	r24, 0x01	; 1
+    33e2:	f1 f7       	brne	.-4      	; 0x33e0					4*r24-1							4*r24-1 (nop inserted)
+
+    33e4:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	14			18					10			13
+000033e6 <init>:

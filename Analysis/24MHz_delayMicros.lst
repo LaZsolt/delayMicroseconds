@@ -1,0 +1,39 @@
+														ATmega	0		low		high	LGT		0		low		high
+														
+												Zero requested microsecond, will do 65536 loop cycles
+														
+delayMicroseconds(3);       // = 6 cycles
+    2f0c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2f0e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2f10:	0e 94 06 1a 	call	0x340c;<delayMicroseconds>	4		4		4				2		2		2
+
+
+0000340c <delayMicroseconds>:
+#elif F_CPU >= 24000000L
+  // the following loop takes a 1/6 of a microsecond (4 cycles)
+  // per iteration, so execute it six times for each microsecond of
+  // delay requested.
+  us *= 6; // x6 us, = 9 cycles [{ us = (us<<2)+(us<<1); = 9 cycles too }]
+    340c:	26 e0       	ldi		r18, 0x06	; 6				1		1		1				1		1		1
+    340e:	ac 01       	movw	r20, r24					1		1		1				1		1		1
+    3410:	24 9f       	mul		r18, r20					2		2		2				1		1		1
+    3412:	c0 01       	movw	r24, r0						1		1		1				1		1		1
+    3414:	25 9f       	mul		r18, r21					2		2		2				1		1		1
+    3416:	90 0d       	add		r25, r0						1		1		1				1		1		1
+    3418:	11 24       	eor		r1, r1						1		1		1				1		1		1
+
+  // account for the time taken in the preceeding commands.
+  // we just burned 21 (23) cycles above, remove 5, (5*4=20)
+  // us is at least 6 so we can substract 5
+  us -= 5; // = 2 cycles
+    341a:	05 97       	sbiw	r24, 0x05	; 5				2		2		2				1		1		1
+
+  // busy wait
+  __asm__ __volatile__
+    341c:	01 97       	sbiw	r24, 0x01	; 1
+    341e:	f1 f7       	brne	.-4      	; 0x341c					4*r24-1							4*r24-1 (nop inserted)
+
+  // return = 4 cycles
+    3420:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	21		21		21				14		14		14 (Need 1 more nops and multiplied us-4)

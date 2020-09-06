@@ -1,0 +1,71 @@
+														ATmega	0		low		high	LGT		0		low		high
+delayMicroseconds(3);       // = 6 cycles
+    2f0c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2f0e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2f10:	0e 94 17 1a 	call	0x342e;<delayMicroseconds>	4		4		4				2		2		2
+
+
+0000342e <delayMicroseconds>:
+#elif F_CPU >= 3686400L
+  // for less than 7 microsecond delay, simply return. the overhead
+  // of the function call takes 14 (16) cycles, which is almost 4 us
+  if (us <= 6) return; // = 3 cycles, (4 when true)
+    342e:	87 30       	cpi		r24, 0x07	; 7 			1		1		1				1		1		1
+    3430:	91 05       	cpc		r25, r1						1		1		1				1		1		1
+    3432:	58 f0       	brcs	.+22     	; 0x344a		2		1		1				2		1		1
+
+  // user wants to wait longer than 12 us
+  if (us > 12) // = 3 cycles
+    3434:	8d 30       	cpi		r24, 0x0D	; 13					1		1						1		1
+    3436:	91 05       	cpc		r25, r1								1		1						1		1
+    3438:	48 f0       	brcs	.+18     	; 0x344c				2		1						2		1
+
+    // since the loop is not accurately 1 microsecond we need
+    // to multiply us by 0.9216 ( = 3.6864 / 4)
+    us = (us * 60398L) >> 16;   // x0.9216 us = 29 cycles (60398 = 0.9216 x 0x10000L)
+    343a:	9c 01       	movw	r18, r24									1								1
+    343c:	ae ee       	ldi		r26, 0xEE	; 238							1								1
+    343e:	bb ee       	ldi		r27, 0xEB	; 235							1								1
+    3440:	0e 94 4f 1e 	call	0x3c9e	; 0x3c9e <__umulhisi3>				26								18
+
+    // account for the time taken in the preceeding commands.
+    // we just burned 47 (49) cycles above, remove 12, (12*4=48)
+    us -= 12; // = 2 cycles
+    3444:	0c 97       	sbiw	r24, 0x0c	; 12							2								1
+
+  // busy wait
+  __asm__ __volatile__ (
+    3446:	01 97       	sbiw	r24, 0x01	; 1
+    3448:	f1 f7       	brne	.-4      	; 0x3446					4*r24-1							4*r24-1 (nop inserted)
+
+  // return = 4 cycles
+    344a:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	14		21		47				10		15		34
+
+    // account for the time taken in the preceeding commands.
+    // we just burned 21 (23) cycles above, remove 6 microseconds
+
+             // 1 cycle when if jump here
+    us -= 6; // 2 cycles
+    344c:	06 97       	sbiw	r24, 0x06	; 6 					2								1
+
+             // 2 cycles to jump back to delay cycle.
+    344e:	fb cf       	rjmp	.-10     	; 0x3446				2								1
+--------------------------------------------------------------------------------------------------------------------------------------
+00003c9e <__umulhisi3>:
+    3c9e:	a2 9f       	mul		r26, r18									2								1
+    3ca0:	b0 01       	movw	r22, r0										1								1
+    3ca2:	b3 9f       	mul		r27, r19									2								1
+    3ca4:	c0 01       	movw	r24, r0										1								1
+    3ca6:	a3 9f       	mul		r26, r19									2								1
+    3ca8:	70 0d       	add		r23, r0										1								1
+    3caa:	81 1d       	adc		r24, r1										1								1
+    3cac:	11 24       	eor		r1,  r1										1								1
+    3cae:	91 1d       	adc		r25, r1										1								1
+    3cb0:	b2 9f       	mul		r27, r18									2								1
+    3cb2:	70 0d       	add		r23, r0										1								1
+    3cb4:	81 1d       	adc		r24, r1										1								1
+    3cb6:	11 24       	eor		r1,  r1										1								1
+    3cb8:	91 1d       	adc		r25, r1										1								1
+    3cba:	08 95       	ret													4								2

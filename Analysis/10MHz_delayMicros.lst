@@ -1,0 +1,43 @@
+														ATmega	0		low		high	LGT		0		low		high
+delayMicroseconds(3);       // = 6 cycles
+    2f0c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2f0e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2f10:	0e 94 0c 1a 	call	0x3418;<delayMicroseconds>	4		4		4				2		2		2
+
+
+00003418 <delayMicroseconds>:
+#elif F_CPU >= 10000000L
+  // for a 1 or 2 microsecond delay, simply return.  the overhead
+  // of the function call takes 14 (16) cycles, which is 1.5 us
+  if (us <= 2) return; // = 3 cycles, (4 when true)
+    3418:	83 30       	cpi		r24, 0x03	; 3 			1		1		1				1		1		1
+    341a:	91 05       	cpc		r25, r1			 			1		1		1				1		1		1
+    341c:	50 f0       	brcs	.+20     	; 0x3432		2		1		1				2		1		1
+
+  // the following loop takes 2/5 of a microsecond (4 cycles) per
+  // iteration, so execute it three times for each microsecond of
+  // delay requested.
+  us = (us << 1) + (us >> 1); // x2.5 us, = 7 cycles
+    341e:	9c 01       	movw	r18, r24		 					1		1						1		1
+    3420:	22 0f       	add		r18, r18		 					1		1						1		1
+    3422:	33 1f       	adc		r19, r19		 					1		1						1		1
+    3424:	96 95       	lsr		r25				 					1		1						1		1
+    3426:	87 95       	ror		r24				 					1		1						1		1
+    3428:	82 0f       	add		r24, r18		 					1		1						1		1
+    342a:	93 1f       	adc		r25, r19		 					1		1						1		1
+
+  // account for the time taken in the preceeding commands.
+  // we just burned 22 (24) cycles above, remove 5, (5*4=20)
+  // us is at least 20 so we can substract 5
+  us -= 5; // = 2 cycles
+    342c:	05 97       	sbiw	r24, 0x05	; 5						2		2						1		1
+
+  // busy wait
+  __asm__ __volatile__ 
+    342e:	01 97       	sbiw	r24, 0x01	; 1
+    3430:	f1 f7       	brne	.-4      	; 0x342e					4*r24-1							4*r24-1 (nop inserted)
+
+  // return = 4 cycles
+    3432:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	14			22					10			17

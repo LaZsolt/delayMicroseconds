@@ -1,0 +1,31 @@
+														ATmega	0		low		high	LGT		0		low		high
+delayMicroseconds(3);       // = 6 cycles
+    2e8c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2e8e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2e90:	0e 94 a9 19 	call	0x3352;<delayMicroseconds>	4		4		4				2		2		2
+
+
+00003352 <delayMicroseconds>:
+#elif F_CPU >= 4000000L
+  __asm__ __volatile__ ("nop"); // just waiting 1 cycle
+    3352:	00 00       	nop									1		1		1				1		1		1
+
+  // the overhead of the function call is 15 (17) cycles which is 4 us
+  if (us <= 4) return; // = 3 cycles, (4 when true)
+    3354:	85 30       	cpi		r24, 0x05	; 5				1		1		1				1		1		1
+    3356:	91 05       	cpc		r25, r1						1		1		1				1		1		1
+    3358:	18 f0       	brcs	.+6      	; 0x3360		2		1		1				2		1		1
+
+  // subtract microseconds that were wasted in this function
+  us -= 4; // = 2 cycles
+    335a:	04 97       	sbiw	r24, 0x04	; 4						2		2						1		1
+
+  // busy wait
+  __asm__ __volatile__
+    335c:	01 97       	sbiw	r24, 0x01	; 1
+    335e:	f1 f7       	brne	.-4      	; 0x335c					4*r24-1							4*r24-1 (nop inserted)
+
+  // return = 4 cycles
+    3360:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	15			16					11			11	 (Need 4 more nops at begin)

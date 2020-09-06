@@ -1,0 +1,82 @@
+														ATmega	0		low		high	LGT		0		low		high
+delayMicroseconds(3);       // = 6 cycles
+    2f0c:	82 e0       	ldi		r24, 0x03					1		1		1				1		1		1
+    2f0e:	90 e0       	ldi		r25, 0x00					1		1		1				1		1		1
+    2f10:	0e 94 13 1a 	call	0x3426;<delayMicroseconds>	4		4		4				2		2		2
+
+
+00003426 <delayMicroseconds>:
+#elif F_CPU >= 14745600L
+  // The overhead of the function call is 14 (16) cycles which is 1 us
+  if (us <= 1) return; //  = 3 cycles, (4 when true)
+    3426:	82 30       	cpi		r24, 0x02	; 2 			1		1		1				1		1		1
+    3428:	91 05       	cpc		r25, r1			 			1		1		1				1		1		1
+    342a:	90 f0       	brcs	.+36     	; 0x3450		2		1		1				2		1		1
+
+  us <<= 2; // x4 us, = 4 cycles
+    342c:	9c 01       	movw	r18, r24							1		1						1		1
+    342e:	22 0f       	add		r18, r18							1		1						1		1
+    3430:	33 1f       	adc		r19, r19							1		1						1		1
+    3432:	22 0f       	add		r18, r18							1		1						1		1
+    3434:	33 1f       	adc		r19, r19							1		1						1		1
+
+                       // +1 cycle (register save)
+  // user wants to wait longer than 3 us
+  if (us > 15) // = 3 cycles
+    3436:	20 31       	cpi		r18, 0x10	; 16					1		1						1		1
+    3438:	31 05       	cpc		r19, r1								1		1						1		1
+    343a:	58 f0       	brcs	.+22     	; 0x3452				2		1						2		1
+  {
+    // Since the loop is not accurately 1/4 of a microsecond we need
+    // to multiply us by 0.9216 (14.7456 / 16)
+    us = (us * 60398L) >> 16;   // x0.9216 us = 29 cycles (60398 = 0.9216 x 0x10000L)
+    343c:	ae ee       	ldi		r26, 0xEE	; 238							1								1
+    343e:	bb ee       	ldi		r27, 0xEB	; 235							1								1
+    3440:	0e 94 56 1e 	call	0x3cac	; 0x3cac <__umulhisi3>				26								18
+
+    3444:	9c 01       	movw	r18, r24									1								1
+
+    // account for the time taken in the preceeding commands.
+    // we just burned 53 (55) cycles above, remove 13, (13*4=52)
+    us -= 13; // = 2 cycles
+    3446:	2d 50       	subi	r18, 0x0D	; 13							1								1
+    3448:	31 09       	sbc		r19, r1										1								1
+
+    344a:	c9 01       	movw	r24, r18							1		1						1		1
+  // busy wait
+  __asm__ __volatile__
+    344c:	01 97       	sbiw	r24, 0x01	; 1
+    344e:	f1 f7       	brne	.-4      	; 0x344c					4*r24-1							4*r24-1 (nop inserted)
+
+  // return = 4 cycles
+    3450:	08 95       	ret									4		4		4				2		2		2
+
+												wasted cycles:	14		27		53				10		22		41
+
+    // account for the time taken in the preceeding commands.
+    // we just burned 27 (29) cycles above, remove 7, (7*4=28)
+
+             // 1 cycle when if jump here
+    us -= 7; // 2 cycles
+    3452:	27 50       	subi	r18, 0x07	; 7 					1								1
+    3454:	31 09       	sbc		r19, r1 							1								1
+
+             // 2 cycles to jump back to delay cycle.
+    3456:	f9 cf       	rjmp	.-14     	; 0x344a				2								1
+--------------------------------------------------------------------------------------------------------------------------------------
+00003cac <__umulhisi3>:
+    3cac:	a2 9f       	mul		r26, r18									2								1
+    3cae:	b0 01       	movw	r22, r0										1								1
+    3cb0:	b3 9f       	mul		r27, r19									2								1
+    3cb2:	c0 01       	movw	r24, r0										1								1
+    3cb4:	a3 9f       	mul		r26, r19									2								1
+    3cb6:	70 0d       	add		r23, r0										1								1
+    3cb8:	81 1d       	adc		r24, r1										1								1
+    3cba:	11 24       	eor		r1,  r1										1								1
+    3cbc:	91 1d       	adc		r25, r1										1								1
+    3cbe:	b2 9f       	mul		r27, r18									2								1
+    3cc0:	70 0d       	add		r23, r0										1								1
+    3cc2:	81 1d       	adc		r24, r1										1								1
+    3cc4:	11 24       	eor		r1,  r1										1								1
+    3cc6:	91 1d       	adc		r25, r1										1								1
+    3cc8:	08 95       	ret													4								2
