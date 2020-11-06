@@ -1,4 +1,4 @@
-/* Delay for the given number of microseconds.  Assumes a 1, 4, 8, 12, 16, 20, 24, 25 or 32 MHz clock. */
+/* Delay for the given number of microseconds.  Assumes a 1, 2, 4, 8, 12, 16, 20, 24, 25 or 32 MHz clock. */
 
 // In case of using LGT MCU need one more NOP in timing loop to compensate shorter executiom time.
 #if defined(__LGT8F__)
