@@ -2,7 +2,7 @@
 
 Wasting the MCU time resource for the amount of time (in microseconds) specified by the parameter. (There are a thousand microseconds in a millisecond and a million microseconds in a second.) 
 For delays longer than a few thousand microseconds, you should use delay() instead.
-delayMicrosecond could work a lot of board frequencies. (32, 25, 24, 20, 16, 12, 8, 4, 2 MHz)
+delayMicroseconds() could work a lot of board frequencies. (32, 25, 24, 20, 16, 12, 8, 4, 2 MHz)
 
 ## Syntax
 
