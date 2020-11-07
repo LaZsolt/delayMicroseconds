@@ -10,7 +10,7 @@ delayMicroseconds(us);
 	
 ## Parameter
 
-us: The number of microseconds to pause. Allowed data types: unsigned int. <br>
+<b>us</b>: The number of microseconds to pause. Allowed data types: unsigned int. <br>
     Current version designed for delaying 1 to 16383 microseconds and not designed to delay 0.
 - Avoid zero delay.
 
@@ -27,7 +27,7 @@ This function will produce an accurate delay in the range 1 microseconds and up,
 
 ## Example Code
 
-The code configures pin number 8 to work as an output pin. It sends a train of pulses of approximately 100 microseconds period.
+The code configures pin number 8 to work as an output pin. It sends a train of pulses of <b>approximately</b> 100 microseconds period.
 The approximation is due to execution of the other instructions in the code, like digitalWrite().
 
 ```
