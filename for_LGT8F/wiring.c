@@ -1,4 +1,4 @@
-/* Delay for the given number of microseconds.  Assumes a 1, 2, 4, 8, 12, 16, 20, 24, 25 or 32 MHz clock. */
+/* Delay for the given number of microseconds.  Assumes a 1, 2, 4, 8, 12, 16, 20, 24, 25 or 32 MHz clocks. */
 
 // In case of using LGT MCU need one more NOP in timing loop to compensate shorter executiom time.
 #if defined(__LGT8F__)
@@ -7,6 +7,12 @@
   #define _ONENOP_ ""    
 #endif
 
+#define _NOP1() __asm__ __volatile__ ("nop")
+#define _NOP2() __asm__ __volatile__ ("nop      \n\t nop")
+#define _NOP3() __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0")
+#define _NOP4() __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0 \n\t nop")
+#define _NOP5() __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0 \n\t nop      \n\t nop")
+#define _NOP6() __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0 \n\t brcc .+0 \n\t brcs .+0")
 #define _MORENOP_ ""
 
 /* Link time optimization (LTO for short) has been supported by the IDE since v1.6.11.
@@ -144,28 +150,16 @@ void delayMicroseconds_v(unsigned int us)
 #elif F_CPU >= 16000000L
     // for the 16 MHz clock on most Arduino boards
 
-#if defined(__LGT8F__)
-    __asm__ __volatile__ (
-        "brne .+0 \n\t"
-        "breq .+0 \n\t"
-        "nop"); // waiting 4 missing cycles in LGT
-#endif
-    // for a one-microsecond delay, simply return.  the overhead
-    // of the function call takes 14 (16) cycles, which is 1us
-    if (us <= 1) return; // = 3 cycles, (4 when true) (LGT same)
-
     // the following loop takes 1/4 of a microsecond (4 cycles)
     // per iteration, so execute it four times for each microsecond of
     // delay requested.
     us <<= 2; // x4 us, = 4 cycles
 
     // account for the time taken in the preceeding commands.
-    // we just burned 19 (21) cycles above, remove 5, (5*4=20)
-    // to 2nd us is at least 8 so we can substract 5
-#if defined(__LGT8F__)
-    _NOP(); //compensate the missing cycle below
-#endif
-    us -= 5; // = 2 cycles
+    // we just burned 10-13 cycles above, remove 3, (3*4-1=11)
+    // to us is at least 4 so we can substract 3
+    us -= 3; // = 1 cycle
+    _NOP2(); //tuning
 
 #elif F_CPU >= 12000000L
     // for the 12 MHz clock if somebody is working with USB
@@ -196,18 +190,9 @@ void delayMicroseconds_v(unsigned int us)
 #elif F_CPU >= 8000000L
     // for the 8 MHz clock
 
-#if defined(__LGT8F__)
-    __asm__ __volatile__ (
-        "brne .+0 \n\t"
-        "breq .+0 \n\t"
-        "nop"); // waiting 4 missing cycles in LGT
-#endif
-    __asm__ __volatile__ (
-        "nop" "\n\t"
-        "nop"); //just waiting 2 cycles
-    // for a 1 and 2 microsecond delay, simply return.  the overhead
-    // of the function call takes 16 (18) cycles, which is 2us
-    if (us <= 2) return; // = 3 cycles, (4 when true)
+    // for a 1 microsecond delay, simply return.  the overhead
+    // of the function call takes 9-12 cycles, which is ~1 us
+    if (us <= 1) return; // = 3 cycles, (4 when true)
 
     // the following loop takes 1/2 of a microsecond (4 cycles)
     // per iteration, so execute it twice for each microsecond of
@@ -215,12 +200,10 @@ void delayMicroseconds_v(unsigned int us)
     us <<= 1; //x2 us, = 2 cycles
 
     // account for the time taken in the preceeding commands.
-    // we just burned 19 (21) cycles above, remove 5, (5*4=20)
-    // to 3rd us is at least 6 so we can substract 5
-#if defined(__LGT8F__)
-    _NOP(); //compensate the missing cycle below
-#endif
-    us -= 5; // = 2 cycles
+    // we just burned 11-14 cycles above, remove 3, (3*4-1=11)
+    // to 2rd us is at least 4 so we can substract 3
+    us -= 3; // = 1 cycle
+    _NOP1(); // tuning
 
 #elif F_CPU >= 4000000L
     // for the 4 MHz clock
@@ -324,12 +307,12 @@ static __inline__ void _lgt8fx_dloop_3(uint16_t ctL, uint8_t ctH) {
   );                                // Sum: 3 + (ct+1) * 4 - 1
 }
 
-__inline__ void _lgt8fx_delay_cycles(double _ct) {
-  uint32_t cticks_left = (uint32_t) _ct;
+__inline__ void _lgt8fx_delay_cycles(const uint32_t cticks) {
+  uint32_t cticks_left;
   boolean CarryIsSet;
 
-
-  CarryIsSet = false;
+  cticks_left = cticks;
+  CarryIsSet  = false;
   // AtMega loopcounter = 0        -> 7  clockticks    ( clockticks used = 3 + (loopcounter+1) * 5 - 1 )
   // AtMega loopcounter = 1        -> 12 clockticks
   // AtMega loopcounter = 16777215 -> 83886077 clockcycles
@@ -344,7 +327,7 @@ __inline__ void _lgt8fx_delay_cycles(double _ct) {
       lcount  = ( (cticks_left - 2) / 4) - 1;                    // AtMega: ( (cticks_left - 2) / 5) - 1
       ilcount = lcount & 0xFFFF ;
       olcount = (lcount >> 16) & 0xFF;
-      _lgt8f_dloop_3((uint16_t)ilcount,(uint8_t)olcount);
+      _lgt8fx_dloop_3((uint16_t)ilcount,(uint8_t)olcount);
       cticks_left -= ( (lcount+1) * 4) + 2;                      // AtMega: ( (lcount+1) * 5) + 2
       CarryIsSet = true;
     }
@@ -361,18 +344,27 @@ __inline__ void _lgt8fx_delay_cycles(double _ct) {
     {
       uint32_t lcount;
       lcount = ( (cticks_left - 1) / 3) - 1;                     // AtMega: (cticks_left - 1) / 4 - 1
-      _lgt8f_dloop_2((uint16_t)lcount);
+      _lgt8fx_dloop_2((uint16_t)lcount);
       cticks_left -= ( (lcount+1) * 3) + 1;                      // AtMega: ( (lcount+1) * 4) + 1
       CarryIsSet = true;
     }
                                     // 6 clockticks:  asm( "breq  6f \n\t 6: brne  7f \n\t 7: breq  8f \n\t 8: brne  9f \n\t 9: \n\t" );
                                     // 6 clockticks:  asm( "brcs  7f \n\t 7: brcs  8f \n\t 8: brcs  9f \n\t 9: \n\t" );
                                     // 6 clockticks:  asm( "brcs .+0 \n\t    brcs .+0 \n\t    brcs .+0 \n\t" );
+  if ((cticks_left == 4) && (CarryIsSet))
+    {
+      __asm__ __volatile__ (        // Carry is set after counting to -1
+        "brcs .+0 \n\t"
+        "brcs .+0"
+      ); 
+      cticks_left -= 4;
+    }
+
   while (cticks_left >= 3)
     {
       __asm__ __volatile__ (        // 2 + 1 clock cycles or 1 + 2 clock cycles
-        "   brcs .+0         \n\t"
-        "8: brcc .+0         \n\t"
+        "brcs .+0 \n\t"
+        "brcc .+0 \n\t"
         : :
       );
       cticks_left -= 3;
@@ -382,7 +374,7 @@ __inline__ void _lgt8fx_delay_cycles(double _ct) {
     {
       if (CarryIsSet)
       {
-        __asm__ __volatile__ ("brcs .+0"); // Carry always set after counting to -1
+        __asm__ __volatile__ ("brcs .+0"); // Carry is set after counting to -1
       }
       else 
       {
