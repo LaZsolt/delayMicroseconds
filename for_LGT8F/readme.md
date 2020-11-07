@@ -12,7 +12,7 @@ delayMicroseconds(us);
 
 us: The number of microseconds to pause. Allowed data types: unsigned int.
     Current version designed for delaying 1 to 16383 microseconds and not designed to delay 0.
-	- Avoid zero delay.
+- Avoid zero delay.
 
 ## Returns
 
@@ -21,9 +21,9 @@ Nothing.
 ## Notes and Warnings
 
 This function will produce an accurate delay in the range 1 microseconds and up. Accuracy depends on board frequency and parameter type.
-	- When parmeter is a variable at lower frequencies accuracy getting worse. When using LGT8Fx MCU the lowest frequency for accurate 1 us delay is 12 MHz and the lowest frequency for accurate 2 us delay is 8 MHz. However a variable passing to delayMicroseconds() funcion takes 1 to 4 clock cycles. This mean -1 and +2 clockticks difference compared to the exact delay.
-	- When parameter is a constant the accuracy can be clock tight precise in any clock fequencies down to 1 MHz. In this case the lowest possibile delay may 1/mcuMHz. The parameter can be lower than 1 microseconds.
-	- delayMicroseconds() not disables interrupts. For even more accuracy, recommended to disable interrupts during pulse timings.
+- When parmeter is a variable at lower frequencies accuracy getting worse. When using LGT8Fx MCU the lowest frequency for accurate 1 us delay is 12 MHz and the lowest frequency for accurate 2 us delay is 8 MHz. However a variable passing to delayMicroseconds() funcion takes 1 to 4 clock cycles. This mean -1 and +2 clockticks difference compared to the exact delay.
+- When parameter is a constant the accuracy can be clock tight precise in any clock fequencies down to 1 MHz. In this case the lowest possibile delay may 1/mcuMHz. The parameter can be lower than 1 microseconds.
+- delayMicroseconds() not disables interrupts. For even more accuracy, recommended to disable interrupts during pulse timings.
 
 ## Example Code
 
