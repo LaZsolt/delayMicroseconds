@@ -10,7 +10,7 @@ delayMicroseconds(us);
 	
 ## Parameter
 
-us: The number of microseconds to pause. Allowed data types: unsigned int.
+us: The number of microseconds to pause. <br> Allowed data types: unsigned int. <br>
     Current version designed for delaying 1 to 16383 microseconds and not designed to delay 0.
 - Avoid zero delay.
 
