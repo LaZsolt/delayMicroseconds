@@ -1,18 +1,11 @@
 /* Delay for the given number of microseconds.  Assumes a 1, 2, 4, 8, 12, 16, 20, 24, 25 or 32 MHz clocks. */
 
-// In case of using LGT MCU need one more NOP in timing loop to compensate shorter executiom time.
-#if defined(__LGT8F__)
-  #define _ONENOP_ " nop \n\t"
-#else
-  #define _ONENOP_ ""    
-#endif
-
-#define _NOP1() __asm__ __volatile__ ("nop")
-#define _NOP2() __asm__ __volatile__ ("nop      \n\t nop")
-#define _NOP3() __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0")
-#define _NOP4() __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0 \n\t nop")
-#define _NOP5() __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0 \n\t nop      \n\t nop")
-#define _NOP6() __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0 \n\t brcc .+0 \n\t brcs .+0")
+#define _NOP1() do { __asm__ __volatile__ ("nop");} while (0)
+#define _NOP2() do { __asm__ __volatile__ ("nop      \n\t nop"); } while (0)
+#define _NOP3() do { __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0"); } while (0)
+#define _NOP4() do { __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0 \n\t nop"); } while (0)
+#define _NOP5() do { __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0 \n\t nop      \n\t nop"); } while (0)
+#define _NOP6() do { __asm__ __volatile__ ("brcc .+0 \n\t brcs .+0 \n\t brcc .+0 \n\t brcs .+0"); } while (0)
 #define _MORENOP_ ""
 
 /* Link time optimization (LTO for short) has been supported by the IDE since v1.6.11.
@@ -28,18 +21,12 @@
  */
 void delayMicroseconds_v(unsigned int us)
 {
-    // call = 4 cycles + 2 to 4 cycles to init us(2 for constant delay, 4 for variable)
-    // ( call = 2 cycles + 2 to 4 cycles to init us when usin LGT MCU )
-    // at the end of this function, return = 4 cycles ( 2 cycles in LGT MCU )
+    // call = 2 cycles + 2 to 4 cycles to init us (2 for constant delay, 1 or 4 for variable)
+    // at the end of this function, return = 2 cycles in LGT MCU
 
-    // calling avrlib's delay_us() function with low values (e.g. 1 or
-    // 2 microseconds) gives delays longer than desired.
-    //delay_us(us);
 #if F_CPU >= 32000000L
-    // for the 32 MHz clock e.g. LGT8Fx Arduino boards
-
-    // no reason for zero delay fix
-    // if (!us) return; // = 3 cycles, (4 when true) or
+    // for the 32 MHz clock e.g. LGT8Fx Arduino compatibile boards
+    // no zero delay fix
 
     // the following loop takes 1/4 of a microsecond (8 cycles with nops)
     // per iteration, so execute it four times for each microsecond of
@@ -51,19 +38,11 @@ void delayMicroseconds_v(unsigned int us)
 #undef  _MORENOP_
 #define _MORENOP_ " brne .+0 \n\t  breq .+0 \n\t  nop \n\t"
 
+    _NOP5(); // tuning
     // account for the time taken in the preceeding commands.
-#if defined(__LGT8F__)
-    __asm__ __volatile__ (
-        _MORENOP_
-        "nop"); //just waiting 5 cycles
     // LGT burned 16 (18) cycles above, remove 2, (2*8=16)
     // us is at least 4 so we can substract 2
     us -= 2; // = 1 cycle
-#else
-    // we just burned 16 (18) cycles above, remove 2, (2*8=16)
-    // us is at least 4 so we can substract 2
-    us -= 2; // = 2 cycles
-#endif
 
 #elif F_CPU >= 25000000L
     // Is there any reason for zero delay fix?
@@ -265,14 +244,14 @@ void delayMicroseconds_v(unsigned int us)
 
     // busy wait
     __asm__ __volatile__ (
-        "1: sbiw %0,1" "\n\t"            // 2 cycles ( 1 cycle in LGT )
-            _ONENOP_                     // 1 cycle if LGT
+        "1: sbiw %0,1   \n\t"            // 1 cycle in LGT
+        "   nop         \n\t"            // 1 cycle
             _MORENOP_                    // 4 cycles if 32 MHz or 1 cycle if 25 MHz
         "   brne 1b"                     // 2 cycles ( 1 cycle when counter became 0 )
         : /* no outputs */ 
         : "w" (us)
     );
-    // return = 4 cycles ( 2 cycles in LGT MCU )
+    // return = 2 cycles in LGT MCU
 }
 
 // AVR-GCC Inline Assembler Cookbook : https://www.nongnu.org/avr-libc/user-manual/inline_asm.html
@@ -284,9 +263,19 @@ static __inline__ void _lgt8fx_dloop_3(uint16_t ctL, uint8_t ctH) __attribute__(
 If local optimize needed, don't forget _lgt8fx_delay_cycles() in arduino.h
  */
 
+static __inline__ void _lgt8fx_dloop_1(uint8_t  ct)               __attribute__((always_inline));
 static __inline__ void _lgt8fx_dloop_2(uint16_t ct)               __attribute__((always_inline));
 static __inline__ void _lgt8fx_dloop_3(uint16_t ctL, uint8_t ctH) __attribute__((always_inline));
 
+
+static __inline__ void _lgt8fx_dloop_1(uint8_t ct) {
+  __asm__ __volatile__ (            // 1 clockticks to init counter ( somehow must tell for compiler to place init here )
+    "1: subi %0,1            \n\t"  // 1 clocktick in LGT
+    "   brcc 1b"                    // 2 clockticks ( 1 when counter became -1 )
+    : /* no outputs */
+    : "r" (ct)
+  );                                // Sum: 1 + (ct+1) * 3 - 1
+}
 
 static __inline__ void _lgt8fx_dloop_2(uint16_t ct) {
   __asm__ __volatile__ (            // 2 clockticks to init counter ( somehow must tell for compiler to place init here )
@@ -294,7 +283,7 @@ static __inline__ void _lgt8fx_dloop_2(uint16_t ct) {
     "   brcc 1b"                    // 2 clockticks ( 1 when counter became -1 )
     : /* no outputs */
     : "w" (ct)
-  );                                // Sum: 2 + ct * 3 - 1
+  );                                // Sum: 2 + (ct+1) * 3 - 1
 }
 
 static __inline__ void _lgt8fx_dloop_3(uint16_t ctL, uint8_t ctH) {
@@ -315,13 +304,13 @@ __inline__ void _lgt8fx_delay_cycles(const uint32_t cticks) {
   CarryIsSet  = false;
   // AtMega loopcounter = 0        -> 7  clockticks    ( clockticks used = 3 + (loopcounter+1) * 5 - 1 )
   // AtMega loopcounter = 1        -> 12 clockticks
-  // AtMega loopcounter = 16777215 -> 83886077 clockcycles
-  // AtMega if (( cticks_left >= 262142 ) and ( cticks_left <= 83886077 ))
+  // AtMega loopcounter = 16777215 -> 83886082 clockcycles
+  // AtMega if (( cticks_left >= 262146 ) and ( cticks_left <= 83886082 ))
   
   // loopcounter = 0               -> 6  clockticks    ( clockticks used = 3 + (loopcounter+1) * 4 - 1 )
   // loopcounter = 1               -> 10 clockticks
   // loopcounter = 16777215        -> 67108866 clocktics
-  if (( cticks_left >= 196607L ) and ( cticks_left <= 67108866L ))
+  if (( cticks_left >= 196610L ) and ( cticks_left <= 67108866L ))
     {
       uint32_t lcount,ilcount,olcount;
       lcount  = ( (cticks_left - 2) / 4) - 1;                    // AtMega: ( (cticks_left - 2) / 5) - 1
@@ -334,18 +323,35 @@ __inline__ void _lgt8fx_delay_cycles(const uint32_t cticks) {
 
   // AtMega loopcounter = 0          -> 5 clocktics    ( clockticks used = 2 + (loopcounter+1) * 4 - 1 )
   // AtMega loopcounter = 1          -> 9 clocktics
-  // AtMega loopcounter = 65535      -> 262141 clocktics
-  // AtMega if (( cticks_left >= 5 ) and ( cticks_left <= 262141 ))
+  // AtMega loopcounter = 65535      -> 262145 clocktics
+  // AtMega if (( cticks_left >= 769 ) and ( cticks_left <= 262145 ))
   
   // loopcounter = 0                 -> 4 clocktics    ( clockticks used = 2 + (loopcounter+1) * 3 - 1 )
   // loopcounter = 1                 -> 7 clocktics
-  // loopcounter = 65535             -> 196606 clocktics
-  if (( cticks_left >= 7L ) and ( cticks_left <= 196606L ))
+  // loopcounter = 65535             -> 196609 clocktics
+  if (( cticks_left >= 769L ) and ( cticks_left <= 196609L ))
     {
       uint32_t lcount;
-      lcount = ( (cticks_left - 1) / 3) - 1;                     // AtMega: (cticks_left - 1) / 4 - 1
-      _lgt8fx_dloop_2((uint16_t)lcount);
-      cticks_left -= ( (lcount+1) * 3) + 1;                      // AtMega: ( (lcount+1) * 4) + 1
+      lcount = ( (cticks_left - 1) / 3);                         // AtMega: (cticks_left - 1) / 4 - 1
+      _lgt8fx_dloop_2((uint16_t)(lcount-1));
+      cticks_left -= ( (lcount) * 3) + 1;                        // AtMega: ( (lcount+1) * 4) + 1
+      CarryIsSet = true;
+    }
+
+  // AtMega loopcounter = 0          -> 3 clocktics    ( clockticks used = 1 + (loopcounter+1) * 3 - 1 )
+  // AtMega loopcounter = 1          -> 6 clocktics
+  // AtMega loopcounter = 255        -> 768 clocktics
+  // AtMega if (( cticks_left >= 5 ) and ( cticks_left <= 768 ))
+  
+  // loopcounter = 0                 -> 3 clocktics    ( clockticks used = 1 + (loopcounter+1) * 3 - 1 )
+  // loopcounter = 1                 -> 6 clocktics
+  // loopcounter = 255               -> 768 clocktics
+  if (( cticks_left >= 5L ) and ( cticks_left <= 768L ))
+    {
+      uint32_t lcount;
+      lcount = (cticks_left / 3);                                // AtMega: ( cticks_left / 3 ) -1
+      _lgt8fx_dloop_1((uint8_t)(lcount-1));
+      cticks_left -= (lcount) * 3;                               // AtMega: (lcount+1) * 3
       CarryIsSet = true;
     }
                                     // 6 clockticks:  asm( "breq  6f \n\t 6: brne  7f \n\t 7: breq  8f \n\t 8: brne  9f \n\t 9: \n\t" );
