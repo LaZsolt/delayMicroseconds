@@ -34,20 +34,17 @@ void delayMicroseconds_v(unsigned int us)
     us <<= 2; // x4 us, = 4 cycles
 
     // 32 MHz is two times faster than 16 MHz so need more nop in the
-    // wait cycle and keep the same delay capability than 16 MHz
+    // wait cycle for keep the same delay capability than 16 MHz
 #undef  _MORENOP_
 #define _MORENOP_ " brne .+0 \n\t  breq .+0 \n\t  nop \n\t"
 
-    _NOP6(); // tuning
     // account for the time taken in the preceeding commands.
     // LGT burned 16 (18) cycles above, remove 2, (2*8=16)
     // us is at least 4 so we can substract 2
     us -= 2; // = 1 cycle
+    _NOP6(); // tuning
 
 #elif F_CPU >= 25000000L
-    // Is there any reason for zero delay fix?
-    // if (!us) return; // = 3 cycles, (4 when true)
-
     // the following loop takes a 1/5 of a microsecond (5 cycles)
     // per iteration, so execute it six times for each microsecond of
     // delay requested.
@@ -58,16 +55,11 @@ void delayMicroseconds_v(unsigned int us)
 #define _MORENOP_ " nop \n\t"
 
     // account for the time taken in the preceeding commands.
-#if defined(__LGT8F__)
-    // we just burned 14 (16) cycles above, remove 3, (3*5=20)
+    // we just burned 14 (16) cycles above, remove 3, (3*5=15)
     // us is at least 5 so we can substract 3
     us -= 3; // = 1 cycle
-#else
-    // we just burned 21 (23) cycles above, remove 4, (4*5=20)
-    // us is at least 5 so we can substract 4
-    us -= 4; // = 2 cycles
-#endif
-  
+    _NOP1(); // tuning
+ 
 #elif F_CPU >= 24000000L
     // for the 24 MHz external clock if somebody is working with USB
 
@@ -256,20 +248,13 @@ void delayMicroseconds_v(unsigned int us)
 
 // AVR-GCC Inline Assembler Cookbook : https://www.nongnu.org/avr-libc/user-manual/inline_asm.html
 
-/* Maybe a good idea to always turn on optimization for this funtcion, but then may became GCC dependent (IDK)
-static __inline__ void _lgt8fx_dloop_2(uint16_t ct)               __attribute__((always_inline,optimize("O1")));
-static __inline__ void _lgt8fx_dloop_3(uint16_t ctL, uint8_t ctH) __attribute__((always_inline,optimize("O1")));
+static __inline__ void _lgt8fx_dloop_1(uint8_t  ct) __attribute__((always_inline));
+static __inline__ void _lgt8fx_dloop_2(uint16_t ct) __attribute__((always_inline));
+static __inline__ void _lgt8fx_dloop_3(uint32_t ct) __attribute__((always_inline));
 
-If local optimize needed, don't forget _lgt8fx_delay_cycles() in arduino.h
- */
-
-static __inline__ void _lgt8fx_dloop_1(uint8_t  ct)               __attribute__((always_inline));
-static __inline__ void _lgt8fx_dloop_2(uint16_t ct)               __attribute__((always_inline));
-static __inline__ void _lgt8fx_dloop_3(uint16_t ctL, uint8_t ctH) __attribute__((always_inline));
-
-
-static __inline__ void _lgt8fx_dloop_1(uint8_t ct) {
-  __asm__ __volatile__ (            // 1 clockticks to init counter ( somehow must tell for compiler to place init here )
+static __inline__ void _lgt8fx_dloop_1(uint8_t ct)
+{
+  __asm__ __volatile__ (            // 1 clockticks to init counter
     "1: subi %0,1            \n\t"  // 1 clocktick in LGT
     "   brcc 1b"                    // 2 clockticks ( 1 when counter became -1 )
     : "=r" (ct)                     // No outputs, but it is inform the compiler about modified register
@@ -277,8 +262,9 @@ static __inline__ void _lgt8fx_dloop_1(uint8_t ct) {
   );                                // Sum: 1 + (ct+1) * 3 - 1
 }
 
-static __inline__ void _lgt8fx_dloop_2(uint16_t ct) {
-  __asm__ __volatile__ (            // 2 clockticks to init counter ( somehow must tell for compiler to place init here )
+static __inline__ void _lgt8fx_dloop_2(uint16_t ct)
+{
+  __asm__ __volatile__ (            // 2 clockticks to init counter
     "1: sbiw %0,1            \n\t"  // 1 clocktick in LGT
     "   brcc 1b"                    // 2 clockticks ( 1 when counter became -1 )
     : "=w" (ct)                     // No outputs, but it is inform the compiler about modified register
@@ -286,38 +272,38 @@ static __inline__ void _lgt8fx_dloop_2(uint16_t ct) {
   );                                // Sum: 2 + (ct+1) * 3 - 1
 }
 
-static __inline__ void _lgt8fx_dloop_3(uint16_t ctL, uint8_t ctH) {
-  __asm__ __volatile__ (            // 3 clockticks to init counter ( somehow must tell for compiler to place init here )
-    "1: sbiw %0,1            \n\t"  // 1 clocktick in LGT
-    "   sbc  %1,__zero_reg__ \n\t"  // 1 clocktick
+static __inline__ void _lgt8fx_dloop_3(uint32_t ct)
+{
+  __asm__ __volatile__ (            // 4 clockticks to init counter ( one more instruction than necessary )
+    "1: sbiw %A0,1            \n\t" // 1 clocktick in LGT
+    "   sbc  %C0,__zero_reg__ \n\t" // 1 clocktick
     "   brcc 1b"                    // 2 clockticks ( 1 when counter became -1 )
-    : "=w" (ctL), "=r" (ctH)        // No outputs, but it is inform the compiler about modified register
-    : "0"  (ctL), "1"  (ctH)
-  );                                // Sum: 3 + (ct+1) * 4 - 1
+    : "=r" (ct)                     // No outputs, but it is inform the compiler about modified register
+    : "0"  (ct)
+  );                                // Sum: 4 + (ct+1) * 4 - 1
 }
 
-__inline__ void _lgt8fx_delay_cycles(const uint32_t cticks) {
+__inline__ void _lgt8fx_delay_cycles(const uint32_t cticks)
+{
   uint32_t cticks_left;
   boolean CarryIsSet;
 
   cticks_left = cticks;
   CarryIsSet  = false;
-  // AtMega loopcounter = 0        -> 7  clockticks    ( clockticks used = 3 + (loopcounter+1) * 5 - 1 )
-  // AtMega loopcounter = 1        -> 12 clockticks
-  // AtMega loopcounter = 16777215 -> 83886082 clockcycles
-  // AtMega if (( cticks_left >= 262146 ) and ( cticks_left <= 83886082 ))
+  // AtMega loopcounter = 0        -> 8  clockticks    ( clockticks used = 4 + (loopcounter+1) * 5 - 1 )
+  // AtMega loopcounter = 1        -> 13 clockticks
+  // AtMega loopcounter = 16777215 -> 83886083 clockcycles
+  // AtMega if (( cticks_left >= 262146 ) and ( cticks_left <= 83886083 ))
   
-  // loopcounter = 0               -> 6  clockticks    ( clockticks used = 3 + (loopcounter+1) * 4 - 1 )
-  // loopcounter = 1               -> 10 clockticks
-  // loopcounter = 16777215        -> 67108866 clocktics
-  if (( cticks_left >= 196610L ) and ( cticks_left <= 67108866L ))
+  // loopcounter = 0               -> 7  clockticks    ( clockticks used = 4 + (loopcounter+1) * 4 - 1 )
+  // loopcounter = 1               -> 11 clockticks
+  // loopcounter = 16777215        -> 67108867 clocktics
+  if (( cticks_left >= 196610L ) and ( cticks_left <= 67108867L ))
     {
-      uint32_t lcount,ilcount,olcount;
-      lcount  = ( (cticks_left - 2) / 4) - 1;                    // AtMega: ( (cticks_left - 2) / 5) - 1
-      ilcount = lcount & 0xFFFF ;
-      olcount = (lcount >> 16) & 0xFF;
-      _lgt8fx_dloop_3((uint16_t)ilcount,(uint8_t)olcount);
-      cticks_left -= ( (lcount+1) * 4) + 2;                      // AtMega: ( (lcount+1) * 5) + 2
+      uint32_t lcount;
+      lcount  = ( (cticks_left - 3) / 4);                        // AtMega: ( (cticks_left - 3) / 5)
+      _lgt8fx_dloop_3(lcount-1);
+      cticks_left -= ( lcount * 4 ) + 3;                         // AtMega: ( (lcount+1) * 5) + 3
       CarryIsSet = true;
     }
 
@@ -332,7 +318,7 @@ __inline__ void _lgt8fx_delay_cycles(const uint32_t cticks) {
   if (( cticks_left >= 769L ) and ( cticks_left <= 196609L ))
     {
       uint32_t lcount;
-      lcount = ( (cticks_left - 1) / 3);                         // AtMega: (cticks_left - 1) / 4 - 1
+      lcount = ( (cticks_left - 1) / 3);                         // AtMega: (cticks_left - 1) / 4
       _lgt8fx_dloop_2((uint16_t)(lcount-1));
       cticks_left -= ( (lcount) * 3) + 1;                        // AtMega: ( (lcount+1) * 4) + 1
       CarryIsSet = true;
@@ -349,7 +335,7 @@ __inline__ void _lgt8fx_delay_cycles(const uint32_t cticks) {
   if (( cticks_left >= 5L ) and ( cticks_left <= 768L ))
     {
       uint32_t lcount;
-      lcount = (cticks_left / 3);                                // AtMega: ( cticks_left / 3 ) -1
+      lcount = (cticks_left / 3);                                // AtMega: ( cticks_left / 3 )
       _lgt8fx_dloop_1((uint8_t)(lcount-1));
       cticks_left -= (lcount) * 3;                               // AtMega: (lcount+1) * 3
       CarryIsSet = true;
