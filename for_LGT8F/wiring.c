@@ -38,7 +38,7 @@ void delayMicroseconds_v(unsigned int us)
 #undef  _MORENOP_
 #define _MORENOP_ " brne .+0 \n\t  breq .+0 \n\t  nop \n\t"
 
-    _NOP5(); // tuning
+    _NOP6(); // tuning
     // account for the time taken in the preceeding commands.
     // LGT burned 16 (18) cycles above, remove 2, (2*8=16)
     // us is at least 4 so we can substract 2
@@ -248,8 +248,8 @@ void delayMicroseconds_v(unsigned int us)
         "   nop         \n\t"            // 1 cycle
             _MORENOP_                    // 4 cycles if 32 MHz or 1 cycle if 25 MHz
         "   brne 1b"                     // 2 cycles ( 1 cycle when counter became 0 )
-        : /* no outputs */ 
-        : "w" (us)
+        : "=w" (us)                      // No outputs, but it is inform the compiler about modified register
+        : "0"  (us)
     );
     // return = 2 cycles in LGT MCU
 }
@@ -272,8 +272,8 @@ static __inline__ void _lgt8fx_dloop_1(uint8_t ct) {
   __asm__ __volatile__ (            // 1 clockticks to init counter ( somehow must tell for compiler to place init here )
     "1: subi %0,1            \n\t"  // 1 clocktick in LGT
     "   brcc 1b"                    // 2 clockticks ( 1 when counter became -1 )
-    : /* no outputs */
-    : "r" (ct)
+    : "=r" (ct)                     // No outputs, but it is inform the compiler about modified register
+    : "0"  (ct)
   );                                // Sum: 1 + (ct+1) * 3 - 1
 }
 
@@ -281,8 +281,8 @@ static __inline__ void _lgt8fx_dloop_2(uint16_t ct) {
   __asm__ __volatile__ (            // 2 clockticks to init counter ( somehow must tell for compiler to place init here )
     "1: sbiw %0,1            \n\t"  // 1 clocktick in LGT
     "   brcc 1b"                    // 2 clockticks ( 1 when counter became -1 )
-    : /* no outputs */
-    : "w" (ct)
+    : "=w" (ct)                     // No outputs, but it is inform the compiler about modified register
+    : "0"  (ct)
   );                                // Sum: 2 + (ct+1) * 3 - 1
 }
 
@@ -291,8 +291,8 @@ static __inline__ void _lgt8fx_dloop_3(uint16_t ctL, uint8_t ctH) {
     "1: sbiw %0,1            \n\t"  // 1 clocktick in LGT
     "   sbc  %1,__zero_reg__ \n\t"  // 1 clocktick
     "   brcc 1b"                    // 2 clockticks ( 1 when counter became -1 )
-    : /* no outputs */
-    : "w" (ctL), "r" (ctH)
+    : "=w" (ctL), "=r" (ctH)        // No outputs, but it is inform the compiler about modified register
+    : "0"  (ctL), "1"  (ctH)
   );                                // Sum: 3 + (ct+1) * 4 - 1
 }
 
