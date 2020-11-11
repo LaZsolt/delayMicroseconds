@@ -1,4 +1,4 @@
-# delayMicroseconds() for LGT8Fx MCUs   (Not tested yet.)
+# delayMicroseconds() for LGT8Fx MCUs (Tested)
 
 Wasting the MCU time resource for the amount of time (in microseconds) specified by the parameter. (There are a thousand microseconds in a millisecond and a million microseconds in a second.) 
 For delays longer than a few thousand microseconds, you should use delay() instead.
