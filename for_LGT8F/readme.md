@@ -23,7 +23,8 @@ Nothing.
 This function will produce an accurate delay in the range from 1 microsecond and up, but accuracy depends on board frequency and parameter type.
 - When parmeter is a variable at lower frequencies the accuracy is getting worse. When using LGT8Fx MCU the lowest frequency for accurate 1 us delay is 12 MHz and the lowest frequency for accurate 2 us delay is 8 MHz. However passing a variable to delayMicroseconds() funcion takes 1 to 4 clock cycles. This means -1 and +2 clockticks difference compared to the exact delay.
 - When then parameter is constant the accuracy can be clock cycle precise at <b>any clock fequencies</b> down to 1 MHz. In this case the lowest possibile delay may 1/mcuMHz. On frequencies higher than 1 MHz the parameter can be lower than 1 microsecond. In this case the parameter does not look like an unsigned int type.
-- delayMicroseconds() does not disable interrupts. For even more accuracy, it is recommended to disable interrupts during (pulse) timings.
+- delayMicroseconds() does not disable interrupts. For even more accuracy, it is recommended to disable interrupts during (pulses) timings.
+- This function does not care about if the main clock frequency has changed in runtime by user program.
 
 ## Example Code
 
