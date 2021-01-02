@@ -1,5 +1,6 @@
 # delayMicroseconds
 Code ideas and analysis for delayMicroseconds()
+I choosed a license, but I don't know it good for here.
 
 Under construction...
 
