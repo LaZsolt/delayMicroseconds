@@ -73,7 +73,14 @@ static inline void delayMicroseconds(uint16_t us) __attribute__((always_inline, 
   #define _TUNINGNOPS_   _NOP7_
   #define _NOPSinCYCLE_  _NOP7_
 
-// #elif F_CPU >= 21000000L  3 * 7 MHz
+/*    3 * 7 MHz
+#elif F_CPU >= 21000000L
+
+  #define _CCALCULATE_   _MULby3_    \
+          "sbiw   %A0,1        \n\t"
+  #define _TUNINGNOPS_   _NOP1_
+  #define _NOPSinCYCLE_  _NOP3_
+*/
 
 #elif F_CPU >= 20000000L
 
@@ -169,25 +176,9 @@ static inline void delayMicroseconds(uint16_t us) __attribute__((always_inline, 
   #define _TUNINGNOPS_  _NOP0_
   #define _NOPSinCYCLE_ _NOP0_
 
-//lif F_CPU >= 2000000L
-#elif F_CPU >= 1800000L
+#else // 2 MHz and below
 
   #define _CCALCULATE_  ""
-//        "adiw   %A0,1        \n\t"
-  #define _TUNINGNOPS_  _NOP0_
-  #define _NOPSinCYCLE_ _NOP0_
-
-#elif F_CPU >= 1000000L
-
-  #define _CCALCULATE_  ""
-//        "adiw   %A0,3        \n\t"
-  #define _TUNINGNOPS_  _NOP0_
-  #define _NOPSinCYCLE_ _NOP0_
-
-#else // for 0.5 MHz delaying 8, 16, 24, 32, 40, ... microseconds (Better than nothing)
-
-  #define _CCALCULATE_  ""
-//        "adiw   %A0,7        \n\t"
   #define _TUNINGNOPS_  _NOP0_
   #define _NOPSinCYCLE_ _NOP0_
 
@@ -221,7 +212,7 @@ static inline void delayMicroseconds(uint16_t us)
         uint16_t tmp;
         asm volatile(
                     // Movw compensates for the missing cycle in
-                    // the last brge below, and also prevents the
+                    // the last brne below, and also prevents the
                     // compiler from inserting this one. Both operands
                     // might actually be the same register, but that's
                     // ok.
