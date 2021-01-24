@@ -1,3 +1,6 @@
+/* Delay for the given number of microseconds.  Assumes a 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 18, 20, 22, 24, 25, 30, 32 MHz clock. */
+/* delayMicroseconds() has been modified by LaZsolt (github.com/LaZsolt/delayMicroseconds) in January 2021 */
+
 static inline void delayMicroseconds(uint16_t us) __attribute__((always_inline, unused));
 
 #define _NOP0_ ""
