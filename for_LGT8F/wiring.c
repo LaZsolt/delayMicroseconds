@@ -233,7 +233,7 @@ __inline__ void _lgt8fx_delay_cycles(const uint32_t cticks)
   // loopcounter = 1               -> 7  clockticks    ( clockticks used = 3 + (loopcounter) * 5 - 1 )
   // loopcounter = 2               -> 12 clockticks
   // loopcounter = 16777215        -> 67108862 clocktics
-  if (( cticks_left >= 262146L ) and ( cticks_left <= 83886077L ))
+  if (( cticks_left >= 262146L ) && ( cticks_left <= 83886077L ))
     {
       uint32_t lcount;
       lcount  = ( (cticks_left - 2) / 5);
@@ -244,14 +244,14 @@ __inline__ void _lgt8fx_delay_cycles(const uint32_t cticks)
   // loopcounter = 1                 -> 4 clocktics    ( clockticks used = 2 + loopcounter * 3 - 1 )
   // loopcounter = 2                 -> 7 clocktics
   // loopcounter = 65535             -> 196606 clocktics
-  if (( cticks_left >= 196607L ) and ( cticks_left <= 262145L ))
+  if (( cticks_left >= 196607L ) && ( cticks_left <= 262145L ))
     {
       uint32_t lcount;
       lcount = ((cticks_left - 196605L) / 3);
       __builtin_avr_delay_cycles(lcount * 4 + 1);
       cticks_left -= lcount * 3 + 1;
     }
-  if (( cticks_left >= 768L ) and ( cticks_left <= 196606L ))
+  if (( cticks_left >= 768L ) && ( cticks_left <= 196606L ))
     {
       uint32_t lcount;
       lcount = ((cticks_left - 1) / 3);
@@ -261,7 +261,7 @@ __inline__ void _lgt8fx_delay_cycles(const uint32_t cticks)
   // loopcounter = 1                 -> 3 clocktics    ( clockticks used = 1 + loopcounter * 3 - 1 )
   // loopcounter = 2                 -> 6 clocktics
   // loopcounter = 255               -> 765 clocktics
-  if (( cticks_left >= 6L ) and ( cticks_left <= 767L ))
+  if (( cticks_left >= 6L ) && ( cticks_left <= 767L ))
     {
       uint32_t lcount;
       lcount =  cticks_left / 3;
