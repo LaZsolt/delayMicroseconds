@@ -211,22 +211,22 @@ __inline__ void delayMicroseconds(uint16_t us)
 {
     if (__builtin_constant_p(us)) {
       _delay_us(us);
-    } else {
-        uint16_t tmp;
-        asm volatile(
+	  return;
+    }
+    uint16_t tmp;
+    asm volatile(
                     // Movw compensates for the missing cycle in
                     // the last brne below, and also prevents the
                     // compiler from inserting this one. Both operands
                     // might actually be the same register, but that's
                     // ok.
-          "movw   %A0, %A1     \n\t"  // 1 ( tmp = us; )
-          _CCALCULATE_                // Cycle counter multiplication and subtraction if needed
-          _TUNINGNOPS_
-          "1:                  \n\t"
-          _NOPSinCYCLE_
-          _SBnBR_ "1b          \n\t"  // 4 (3 on last)
-          : "=w" (tmp)
-          : "r"  (us)
-        );
-    }
+      "movw   %A0, %A1     \n\t"  // 1 ( tmp = us; )
+      _CCALCULATE_                // Cycle counter multiplication and subtraction if needed
+      _TUNINGNOPS_
+      "1:                  \n\t"
+      _NOPSinCYCLE_
+      _SBnBR_ "1b          \n\t"  // 4 (3 on last)
+      : "=w" (tmp)
+      : "r"  (us)
+    );
 }
