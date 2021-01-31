@@ -22,7 +22,7 @@ Nothing.
 
 This function will produce an accurate delay in the range from 1 microsecond and up, but accuracy depends on board frequency and parameter type.
 - When parmeter is a variable, at frequencies lower than 4 MHz, the accuracy is getting worse. Passing a register optimized variable to delayMicroseconds() function takes 1 clock cycles. This means when a non register optimized 16 variable passed, delay will be longer by 3 clockticks.
-- When then parameter is constant the accuracy can be clock cycle precise at <b>any clock fequencies</b> down to 1 MHz. In this case the lowest possibile delay may 1/mcuMHz. On frequencies higher than 1 MHz the parameter can be lower than 1 microsecond. In this case the parameter does not look like an unsigned int type.
+- When the parameter is constant the accuracy can be clock cycle precise at <b>any clock fequencies</b> down to 1 MHz. In this case the lowest possibile delay may 1/mcuMHz. On frequencies higher than 1 MHz the parameter can be lower than 1 microsecond. In this case the parameter does not look like an unsigned int type.
 - delayMicroseconds() does not disable interrupts. For even more accuracy, it is recommended to disable interrupts during (pulses) timings.
 - This function does not care about if the main clock frequency has changed in runtime by user program, but possibile to call a second copy of delayMicroseconds() which built for this second frequency. En example code will be created later.
 
