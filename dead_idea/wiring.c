@@ -20,7 +20,7 @@ void delayMicroseconds_v(unsigned int us)   // call with variable
 	// delay requested.
 	us *= 6; // x6 us, = 9 cycles
 
-	if (us <= 6) return; //  = 3 cycles, (4 when true)
+	if (us <= 4) return; //  = 3 cycles, (4 when true)
 
 	__asm__ __volatile__ (
 		"nop" "\n\t"
@@ -28,7 +28,7 @@ void delayMicroseconds_v(unsigned int us)   // call with variable
 	// account for the time taken in the preceeding commands.
 	// we just burned 28 cycles above, remove 7, (7*4=28)
 	// to 2nd us is at least 12 so we can substract 7
-	us -= 7; // = 2 cycles
+	us -= 6; // = 2 cycles
 
 #elif F_CPU >= 20000000L
 	// for the 20 MHz clock on rare Arduino boards
@@ -39,7 +39,7 @@ void delayMicroseconds_v(unsigned int us)   // call with variable
 		"nop" "\n\t"
 		"nop" "\n\t"
 		"nop"); //just waiting 3 cycles
-	if (us <= 1) return; //  = 3 cycles, (4 when true)
+	if (us <= 2) return; //  = 3 cycles, (4 when true)
 
 	_NOP();
 	// the following loop takes a 1/5 of a microsecond (4 cycles)
